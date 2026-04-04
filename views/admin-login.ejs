@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body style="display: flex; align-items: center; justify-content: center; height: 100vh;">
+    <div class="admin-panel" style="margin: 0; width: 400px;">
+        <h2 style="text-align: center; margin-bottom: 20px;">Вход в Систему</h2>
+        <% if(error) { %> <p style="color: var(--accent); text-align: center;"><%= error %></p> <% } %>
+        <form action="/login" method="POST">
+            <div class="form-group">
+                <label>Пароль ( 2026)</label>
+                <input type="password" name="password" required>
+            </div>
+            <button type="submit" class="btn" style="width: 100%;">Войти</button>
+        </form>
+    </div>
+</body>
+</html>

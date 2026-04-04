@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <meta property="og:title" content="<%= title %>">
+    <meta property="og:description" content="Найкраща кінобаза України.">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="theme-picker">
+        <div class="theme-dot pink" onclick="setTheme('pink')" title="Неоновий Рожевий"></div>
+        <div class="theme-dot blue" onclick="setTheme('blue')" title="Кібер Синій"></div>
+        <div class="theme-dot green" onclick="setTheme('green')" title="Матричний Зелений"></div>
+        <div class="theme-dot purple" onclick="setTheme('purple')" title="Космічний Фіолетовий"></div>
+    </div>
+
+    <div class="contact-modal" id="authModal">
+        <div class="contact-content">
+            <button class="contact-close" onclick="document.getElementById('authModal').classList.remove('active')">×</button>
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="switchAuthTab('login')">Вхід</div>
+                <div class="auth-tab" onclick="switchAuthTab('register')">Реєстрація</div>
+            </div>
+            <form id="loginForm" action="/user-login" method="POST">
+                <div class="form-group"><input type="text" name="username" placeholder="Ваш Логін" required></div>
+                <div class="form-group"><input type="password" name="password" placeholder="Пароль" required></div>
+                <button type="submit" class="btn" style="width: 100%;">Увійти</button>
+            </form>
+            <form id="registerForm" action="/register" method="POST" style="display: none;">
+                <div class="form-group"><input type="text" name="username" placeholder="Придумайте Логін" required></div>
+                <div class="form-group"><input type="password" name="password" placeholder="Придумайте Пароль" required></div>
+                <button type="submit" class="btn" style="width: 100%;">Створити акаунт</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="contact-modal" id="contactModal">
+        <div class="contact-content">
+            <button class="contact-close" onclick="document.getElementById('contactModal').classList.remove('active')">×</button>
+            <h2 class="section-title">Запропонувати контент</h2>
+            <form action="/contact" method="POST">
+                <div class="form-group"><input type="text" name="name" placeholder="Твоє ім'я" required value="<%= user ? user.username : '' %>"></div>
+                <div class="form-group"><input type="text" name="title" placeholder="Назва фільму/серіалу" required></div>
+                <div class="form-group"><textarea name="message" rows="3" placeholder="Додатковий коментар..."></textarea></div>
+                <button type="submit" class="btn" style="width: 100%;">Відправити</button>
+            </form>
+        </div>
+    </div>
+
+    <header>
+        <a href="/" class="logo">Дімз<span>Огляд</span></a>
+        <div class="header-right">
+            <form action="/" method="GET" class="search-form">
+                <input type="text" name="search" placeholder="Пошук фільмів..." value="<%= searchQuery %>">
+                <button type="submit">🔍</button>
+            </form>
+            <nav>
+                <a href="#" onclick="document.getElementById('contactModal').classList.add('active'); event.preventDefault();" title="Запропонувати">💡</a>
+                <% if(user) { %>
+                    <a href="/profile" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff;">
+                        <img src="<%= user.avatar %>" style="width: 20px; height: 20px; border-radius: 50%;"> <%= user.username %>
+                    </a>
+                <% } else { %>
+                    <a href="#" onclick="document.getElementById('authModal').classList.add('active'); event.preventDefault();">Вхід</a>
+                <% } %>
+                <% if(isAdmin) { %><a href="/admin" style="color: var(--gold); text-shadow: 0 0 10px var(--gold-glow);">⚙️ CMS</a><% } %>
+            </nav>
+        </div>
+    </header>
+
+    <% if (currentPage === 1 && !searchQuery && !genreFilter && heroMovies.length > 0) { %>
+        <div class="hero-slider-wrapper" id="slider">
+            <button class="slider-btn prev" onclick="moveSlide(-1)">&#10094;</button><button class="slider-btn next" onclick="moveSlide(1)">&#10095;</button>
+            <% heroMovies.forEach((movie, index) => { %>
+                <div class="hero-slide <%= index === 0 ? 'active' : '' %>">
+                    <div class="hero-bg-img" style="background-image: url('<%= movie.backdrop || movie.poster %>');"></div>
+                    <div class="hero-overlay"></div>
+                    <div class="hero-content">
+                        <div style="margin-bottom: 15px; display: flex; gap: 8px;">
+                            <% const hGenres = Array.isArray(movie.genre) ? movie.genre : [movie.genre]; %>
+                            <% hGenres.forEach(g => { %><span style="background: var(--accent); color: #fff; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; box-shadow: 0 0 10px var(--accent-glow);"><%= g %></span><% }) %>
+                        </div>
+                        <h1><%= movie.title %></h1>
+                        <p><%= movie.desc.replace(/<[^>]*>?/gm, '').substring(0, 140) %>...</p>
+                        <a href="/movie/<%= movie.id %>" class="btn">Читати огляд</a>
+                    </div>
+                </div>
+            <% }) %>
+            <div class="slider-dots"><% heroMovies.forEach((_, index) => { %><div class="dot <%= index === 0 ? 'active' : '' %>" onclick="currentSlide(<%= index %>)"></div><% }) %></div>
+        </div>
+    <% } else { %><div style="height: 100px;"></div><% } %>
+
+    <div class="container kinorium-layout">
+        <main class="main-feed">
+
+            <% if (currentPage === 1 && !searchQuery && !genreFilter && recommendedMovies.length > 0) { %>
+                <div style="background: rgba(251, 191, 36, 0.05); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 16px; padding: 25px;">
+                    <h2 class="section-title title-gold">🔥 Вибір редакції</h2>
+                    <div class="horizontal-scroll" style="padding-bottom: 10px;">
+                        <% recommendedMovies.forEach(movie => { %>
+                            <div style="position: relative;">
+                                <div class="watchlist-btn" onclick="toggleWatchlist(<%= movie.id %>, this)" data-id="<%= movie.id %>">♥</div>
+                                <a href="/movie/<%= movie.id %>" class="compact-card gold-card">
+                                    <div class="compact-poster"><div class="gold-badge">Топ</div><img src="<%= movie.poster %>"></div>
+                                    <h3 class="compact-title"><%= movie.title %></h3>
+                                    <span class="compact-meta"><%= movie.mediaType %></span>
+                                </a>
+                            </div>
+                        <% }) %>
+                    </div>
+                </div>
+            <% } %>
+            
+            <div class="genre-filters">
+                <a href="/" class="genre-tag <%= !genreFilter ? 'active' : '' %>">Всі</a>
+                <% allGenres.forEach(genre => { %><a href="/?genre=<%= encodeURIComponent(genre) %>" class="genre-tag <%= genreFilter === genre ? 'active' : '' %>"><%= genre %></a><% }) %>
+                <a href="#" class="genre-tag" style="background: rgba(255,255,255,0.1); border-color: #cbd5e1; color: #fff;" onclick="showWatchlistOnly(event)">🔖 Мої збережені</a>
+            </div>
+
+            <% if (searchQuery || genreFilter) { %>
+                <div>
+                    <h2 class="section-title title-gradient"><%= searchQuery ? `Пошук: "${searchQuery}"` : `Жанр: ${genreFilter}` %></h2>
+                    <div style="display: flex; flex-wrap: wrap; gap: 20px;">
+                        <% if(paginatedMovies.length === 0) { %><p>Нічого не знайдено.</p><% } %>
+                        <% paginatedMovies.forEach(movie => { %>
+                            <div style="position: relative;" class="movie-wrap" data-id="<%= movie.id %>">
+                                <div class="watchlist-btn" onclick="toggleWatchlist(<%= movie.id %>, this)" data-id="<%= movie.id %>">♥</div>
+                                <a href="/movie/<%= movie.id %>" class="compact-card">
+                                    <div class="compact-poster"><% if(movie.rating > 0){ %><div class="compact-rating"><%= movie.rating %></div><% } %><img src="<%= movie.poster %>"></div>
+                                    <h3 class="compact-title"><%= movie.title %></h3>
+                                    <span class="compact-meta"><%= movie.year || '' %> • <%= movie.mediaType %></span>
+                                </a>
+                            </div>
+                        <% }) %>
+                    </div>
+                </div>
+            <% } else { %>
+                
+                <% if (currentPage === 1 && comingSoonMovies.length > 0) { %>
+                    <div>
+                        <h2 class="section-title title-gradient">Скоро в кіно</h2>
+                        <div class="horizontal-scroll">
+                            <% comingSoonMovies.forEach(movie => { %>
+                                <div style="position: relative;">
+                                    <div class="watchlist-btn" onclick="toggleWatchlist(<%= movie.id %>, this)" data-id="<%= movie.id %>">♥</div>
+                                    <a href="/movie/<%= movie.id %>" class="compact-card">
+                                        <div class="compact-poster"><img src="<%= movie.poster %>"></div>
+                                        <h3 class="compact-title"><%= movie.title %></h3>
+                                        <span class="compact-meta" style="color: var(--accent); font-weight: bold;"><%= movie.year %></span>
+                                    </a>
+                                </div>
+                            <% }) %>
+                        </div>
+                    </div>
+                <% } %>
+
+                <% if (currentPage === 1 && popularMovies.length > 0) { %>
+                    <div>
+                        <h2 class="section-title title-gradient">Популярні Фільми</h2>
+                        <div class="horizontal-scroll" style="padding-bottom: 20px; padding-left: 20px;">
+                            <% popularMovies.slice(0, 10).forEach((movie, index) => { %>
+                                <a href="/movie/<%= movie.id %>" class="top-10-item">
+                                    <span class="rank-number"><%= index + 1 %></span><div class="top-10-poster"><img src="<%= movie.poster %>"></div>
+                                </a>
+                            <% }) %>
+                        </div>
+                    </div>
+                <% } %>
+
+                <% if (currentPage === 1 && popularSeries.length > 0) { %>
+                    <div>
+                        <h2 class="section-title title-gradient">Популярні Серіали</h2>
+                        <div class="horizontal-scroll" style="padding-bottom: 20px; padding-left: 20px;">
+                            <% popularSeries.slice(0, 10).forEach((movie, index) => { %>
+                                <a href="/movie/<%= movie.id %>" class="top-10-item">
+                                    <span class="rank-number"><%= index + 1 %></span><div class="top-10-poster"><img src="<%= movie.poster %>"></div>
+                                </a>
+                            <% }) %>
+                        </div>
+                    </div>
+                <% } %>
+
+                <% if (currentPage === 1 && newsArticles.length > 0) { %>
+                    <div>
+                        <h2 class="section-title title-gradient">Новини</h2>
+                        <div class="news-grid">
+                            <% newsArticles.slice(0, 4).forEach(news => { %>
+                                <a href="/movie/<%= news.id %>" class="news-card">
+                                    <span style="font-size: 12px; color: var(--accent); margin-bottom: 5px; display: block; font-weight: bold;"><%= news.date %></span>
+                                    <h3><%= news.title %></h3>
+                                    <p><%= news.desc.replace(/<[^>]*>?/gm, '').substring(0, 80) %>...</p>
+                                </a>
+                            <% }) %>
+                        </div>
+                    </div>
+                <% } %>
+
+                <div>
+                    <h2 class="section-title title-gradient" id="allMaterialsTitle">Останні надходження</h2>
+                    <div style="display: flex; flex-wrap: wrap; gap: 20px;" id="infiniteFeedGrid">
+                        <% paginatedMovies.forEach(movie => { %>
+                            <div style="position: relative;" class="movie-wrap" data-id="<%= movie.id %>">
+                                <div class="watchlist-btn" onclick="toggleWatchlist(<%= movie.id %>, this)" data-id="<%= movie.id %>">♥</div>
+                                <a href="/movie/<%= movie.id %>" class="compact-card" onmouseenter="startAutoplay(this, '<%= movie.hoverTrailer || '' %>')" onmouseleave="stopAutoplay(this)">
+                                    <div class="compact-poster">
+                                        <% if(movie.rating > 0){ %><div class="compact-rating">★ <%= movie.rating %></div><% } %>
+                                        <img src="<%= movie.poster %>">
+                                        <div class="card-video-wrap"></div>
+                                    </div>
+                                    <h3 class="compact-title"><%= movie.title %></h3>
+                                    <span class="compact-meta"><%= movie.mediaType %></span>
+                                </a>
+                            </div>
+                        <% }) %>
+                    </div>
+                    <div class="loader-spinner" id="feedLoader"></div>
+                </div>
+            <% } %>
+        </main>
+
+        <aside class="right-sidebar">
+            <div class="sidebar-widget">
+                <h3 style="border-bottom-color: #8b5cf6;">📊 Опитування</h3>
+                <p style="margin-bottom: 15px; font-weight: 600; font-size: 14px; color: #fff;"><%= poll.question %></p>
+                <div id="pollContainer">
+                    <% 
+                    const totalVotes = poll.options.reduce((acc, o) => acc + o.votes, 0);
+                    poll.options.forEach(opt => { 
+                        const percent = totalVotes > 0 ? Math.round((opt.votes / totalVotes) * 100) : 0;
+                    %>
+                        <div class="poll-option <%= hasVoted ? 'voted' : '' %>" onclick="votePoll(<%= opt.id %>)">
+                            <div class="poll-bar" style="width: <%= hasVoted ? percent : 0 %>%;"></div>
+                            <div class="poll-text"><span><%= opt.text %></span> <% if(hasVoted){ %><span><%= percent %>%</span><% } %></div>
+                        </div>
+                    <% }) %>
+                </div>
+            </div>
+
+            <div class="sidebar-widget">
+                <h3 style="border-bottom-color: var(--accent);">💬 Обговорення</h3>
+                <% if (recentComments && recentComments.length > 0) { %>
+                    <% recentComments.forEach(c => { %>
+                        <div class="side-comment">
+                            <span class="side-comment-user"><%= c.user %></span>
+                            <a href="/movie/<%= c.movieId %>" class="side-comment-movie"><%= c.movieTitle %></a>
+                            <p class="side-comment-text">«<%= c.text %>»</p>
+                        </div>
+                    <% }) %>
+                <% } else { %><p style="font-size: 13px; color: var(--text-muted);">Тиша...</p><% } %>
+            </div>
+
+            <% if (topViewed.length > 0) { %>
+                <div class="sidebar-widget">
+                    <h3 style="border-bottom-color: #38bdf8;">🔥 Популярне</h3>
+                    <% topViewed.forEach(movie => { %>
+                        <a href="/movie/<%= movie.id %>" class="side-top-item">
+                            <img src="<%= movie.poster %>" alt="poster">
+                            <div class="side-top-info">
+                                <h4><%= movie.title %></h4>
+                                <span>👁 <%= formatNum(movie.views) %></span>
+                            </div>
+                        </a>
+                    <% }) %>
+                </div>
+            <% } %>
+        </aside>
+    </div>
+
+    <footer>
+        <div class="footer-grid">
+            <div class="footer-col">
+                <a href="/" class="logo">Дімз<span>Огляд</span></a>
+                <p style="margin-top: 10px; color: var(--text-muted);">Сучасний портал про кіно. Тільки якісний контент.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Розділи</h4>
+                <ul><li><a href="/">Головна</a></li><li><a href="/?genre=Фільм">Фільми</a></li></ul>
+            </div>
+        </div>
+        <div class="footer-bottom">&copy; 2026 Дімз Огляд. Всі права захищено.</div>
+    </footer>
+
+    <script>
+        const savedTheme = localStorage.getItem('dimz_theme') || 'pink'; document.body.setAttribute('data-theme', savedTheme);
+        document.querySelectorAll('.theme-dot').forEach(d => { if(d.classList.contains(savedTheme)) d.classList.add('active'); });
+        function setTheme(theme) { document.body.setAttribute('data-theme', theme); localStorage.setItem('dimz_theme', theme); document.querySelectorAll('.theme-dot').forEach(d => d.classList.remove('active')); event.target.classList.add('active'); }
+
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active')); event.target.classList.add('active');
+            if(tab === 'login') { document.getElementById('loginForm').style.display = 'block'; document.getElementById('registerForm').style.display = 'none'; }
+            else { document.getElementById('loginForm').style.display = 'none'; document.getElementById('registerForm').style.display = 'block'; }
+        }
+
+        let slideIndex = 0; let slideTimer;
+        const slides = document.querySelectorAll('.hero-slide'); const dots = document.querySelectorAll('.dot');
+        function showSlides(n) {
+            if(slides.length === 0) return;
+            if (n >= slides.length) slideIndex = 0; if (n < 0) slideIndex = slides.length - 1;
+            slides.forEach(s => s.classList.remove('active')); dots.forEach(d => d.classList.remove('active'));
+            slides[slideIndex].classList.add('active'); if(dots[slideIndex]) dots[slideIndex].classList.add('active');
+        }
+        function moveSlide(n) { clearInterval(slideTimer); slideIndex += n; showSlides(slideIndex); startTimer(); }
+        function currentSlide(n) { clearInterval(slideTimer); slideIndex = n; showSlides(slideIndex); startTimer(); }
+        function startTimer() { if(slides.length > 1) { slideTimer = setInterval(() => { slideIndex++; showSlides(slideIndex); }, 6000); } }
+        if(slides.length > 0) { showSlides(slideIndex); startTimer(); }
+
+        let watchlist = JSON.parse(localStorage.getItem('dimz_watchlist')) || [];
+        document.querySelectorAll('.watchlist-btn').forEach(btn => { if(watchlist.includes(btn.getAttribute('data-id'))) btn.classList.add('saved'); });
+        function toggleWatchlist(id, btnElement) {
+            id = String(id);
+            if(watchlist.includes(id)) { watchlist = watchlist.filter(item => item !== id); btnElement.classList.remove('saved'); } 
+            else { watchlist.push(id); btnElement.classList.add('saved'); }
+            localStorage.setItem('dimz_watchlist', JSON.stringify(watchlist));
+        }
+        function showWatchlistOnly(e) {
+            e.preventDefault(); document.getElementById('allMaterialsTitle').innerText = 'Мої збережені';
+            document.querySelectorAll('.movie-wrap').forEach(el => { el.style.display = watchlist.includes(el.getAttribute('data-id')) ? 'block' : 'none'; });
+        }
+
+        let hoverTimeout;
+        function startAutoplay(cardElement, trailerUrl) {
+            if(!trailerUrl || trailerUrl === 'null' || trailerUrl === '') return;
+            hoverTimeout = setTimeout(() => {
+                const wrap = cardElement.querySelector('.card-video-wrap');
+                if(wrap) {
+                    wrap.style.display = 'block';
+                    wrap.innerHTML = `<iframe src="${trailerUrl}" frameborder="0" style="width:100%; height:100%; pointer-events:none;"></iframe>`;
+                }
+            }, 800);
+        }
+        function stopAutoplay(cardElement) {
+            clearTimeout(hoverTimeout);
+            const wrap = cardElement.querySelector('.card-video-wrap');
+            if(wrap) { wrap.style.display = 'none'; wrap.innerHTML = ''; }
+        }
+
+        let hasVotedLocally = <%= hasVoted %>;
+        async function votePoll(optId) {
+            if(hasVotedLocally) return;
+            const res = await fetch('/api/poll/vote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ optionId: optId }) });
+            const data = await res.json();
+            if(data.success) {
+                hasVotedLocally = true;
+                const total = data.poll.options.reduce((a,o)=>a+o.votes, 0);
+                const container = document.getElementById('pollContainer');
+                container.innerHTML = '';
+                data.poll.options.forEach(opt => {
+                    const pct = Math.round((opt.votes/total)*100);
+                    container.innerHTML += `<div class="poll-option voted"><div class="poll-bar" style="width: ${pct}%;"></div><div class="poll-text"><span>${opt.text}</span><span>${pct}%</span></div></div>`;
+                });
+            } else if (data.error === 'auth') {
+                document.getElementById('authModal').classList.add('active');
+            }
+        }
+
+        let currentPage = 1; const totalPages = <%= totalPages %>; const loader = document.getElementById('feedLoader'); let isLoading = false;
+        window.addEventListener('scroll', async () => {
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 600) {
+                if(isLoading || currentPage >= totalPages || <%= !!searchQuery %> || <%= !!genreFilter %>) return;
+                isLoading = true; loader.style.display = 'block'; currentPage++;
+                try {
+                    const res = await fetch(`/?page=${currentPage}&json=1`); const data = await res.json();
+                    data.movies.forEach(movie => {
+                        const isSaved = watchlist.includes(String(movie.id)) ? 'saved' : '';
+                        const ratingHtml = movie.rating > 0 ? `<div class="compact-rating">★ ${movie.rating}</div>` : '';
+                        const html = `
+                            <div style="position: relative; animation: fadeIn 0.5s;" class="movie-wrap" data-id="${movie.id}">
+                                <div class="watchlist-btn ${isSaved}" onclick="toggleWatchlist(${movie.id}, this)" data-id="${movie.id}">♥</div>
+                                <a href="/movie/${movie.id}" class="compact-card" onmouseenter="startAutoplay(this, '${movie.hoverTrailer || ''}')" onmouseleave="stopAutoplay(this)">
+                                    <div class="compact-poster">${ratingHtml}<img src="${movie.poster}"><div class="card-video-wrap"></div></div>
+                                    <h3 class="compact-title">${movie.title}</h3>
+                                    <span class="compact-meta">${movie.year || ''} • ${movie.mediaType}</span>
+                                </a>
+                            </div>`;
+                        document.getElementById('infiniteFeedGrid').insertAdjacentHTML('beforeend', html);
+                    });
+                } catch(e) { console.error(e); }
+                loader.style.display = 'none'; isLoading = false;
+            }
+        });
+    </script>
+</body>
+</html>

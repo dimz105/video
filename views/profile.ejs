@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="ambient-orb orb-1"></div><div class="ambient-orb orb-2"></div>
+    <div class="theme-picker">
+        <div class="theme-dot pink" onclick="setTheme('pink')"></div><div class="theme-dot blue" onclick="setTheme('blue')"></div>
+        <div class="theme-dot green" onclick="setTheme('green')"></div><div class="theme-dot purple" onclick="setTheme('purple')"></div>
+    </div>
+
+    <header>
+        <a href="/" class="logo">Дімз<span>Огляд</span></a>
+        <nav>
+            <a href="/">🏠 На головну</a> 
+            <% if(isAdmin) { %><a href="/admin" style="color: var(--gold); text-shadow: 0 0 10px var(--gold-glow);">⚙️ Адмінка</a><% } %>
+            <a href="/user-logout" style="color: var(--danger); border: 1px solid var(--danger);">Вийти</a>
+        </nav>
+    </header>
+
+    <div class="container" style="margin-top: 100px; max-width: 900px; min-height: 60vh;">
+        <h1 class="section-title title-gradient" style="margin-bottom: 30px;">Особистий кабінет</h1>
+        
+        <div style="background: rgba(255,255,255,0.02); backdrop-filter: blur(15px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 40px; display: grid; grid-template-columns: 1fr 2fr; gap: 40px;">
+            
+            <div style="display: flex; flex-direction: column; align-items: center; text-align: center; border-right: 1px solid var(--glass-border); padding-right: 30px;">
+                <img src="<%= user.avatar %>" alt="Avatar" style="width: 140px; height: 140px; border-radius: 50%; object-fit: cover; border: 4px solid var(--accent); box-shadow: 0 0 20px var(--accent-glow); margin-bottom: 15px;">
+                <h2 style="color: #fff; margin-bottom: 5px; font-size: 22px;"><%= user.username %></h2>
+                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 20px;">На сайті з: <%= user.regDate %></p>
+                
+                <div style="width: 100%; text-align: left;">
+                    <% const badge = getBadge(user.commentsCount || 0); %>
+                    <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; margin-bottom: 10px;">
+                        <span style="font-size: 12px; color: var(--text-muted); display: block;">Ваш статус:</span>
+                        <strong style="color: <%= badge.color %>; font-size: 16px;"><%= badge.name %></strong>
+                    </div>
+                    <% if(isAdmin) { %>
+                        <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid var(--gold); padding: 10px; border-radius: 8px; color: var(--gold); font-weight: 800; text-align: center; text-shadow: 0 0 10px var(--gold-glow);">👑 Адміністратор</div>
+                    <% } %>
+                </div>
+            </div>
+
+            <div>
+                <h3 style="color: #fff; margin-bottom: 25px; font-size: 18px;">Налаштування</h3>
+                <form action="/profile/update" method="POST" enctype="multipart/form-data">
+                    <div class="form-group"><label>E-mail адреса</label><input type="email" name="email" value="<%= user.email || '' %>" placeholder="ваша@пошта.com"></div>
+                    <div class="form-group"><label>Новий пароль</label><input type="password" name="password" placeholder="Введіть пароль для зміни"></div>
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label style="color: var(--accent);">Змінити аватарку</label>
+                        <div style="background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); padding: 15px; border-radius: 8px;">
+                            <input type="file" name="avatarFile" accept="image/*">
+                        </div>
+                    </div>
+                    <button type="submit" class="btn" style="margin-top: 15px;">Зберегти налаштування</button>
+                </form>
+            </div>
+
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <footer><div class="footer-bottom">&copy; 2026 Дімз Огляд. Всі права захищено.</div></footer>
+
+    <script>
+        const savedTheme = localStorage.getItem('dimz_theme') || 'pink'; document.body.setAttribute('data-theme', savedTheme);
+        const urlParams = new URLSearchParams(window.location.search);
+        if(urlParams.get('success') === 'updated') {
+            const toastContainer = document.getElementById('toast-container');
+            if(!toastContainer) document.body.insertAdjacentHTML('beforeend', '<div id="toast-container"></div>');
+            const toast = document.createElement('div'); toast.className = 'toast'; toast.innerText = 'Профіль успішно оновлено!';
+            document.getElementById('toast-container').appendChild(toast); setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3000);
+            window.history.replaceState({}, document.title, "/profile");
+        }
+    </script>
+</body>
+</html>

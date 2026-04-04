@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.2/tinymce.min.js"></script>
+    <script>
+        tinymce.init({
+            selector: 'textarea.richtext', 
+            plugins: 'emoticons link image lists code',
+            toolbar: 'undo redo | bold italic | alignleft aligncenter | bullist numlist | link image emoticons',
+            skin: 'oxide-dark', 
+            content_css: 'dark', 
+            menubar: false, 
+            setup: function (editor) { editor.on('change', function () { editor.save(); }); }
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="admin-body">
+    
+    <header class="admin-header">
+        <a href="/admin" class="logo">Дімз<span>CMS</span></a>
+        <nav>
+            <span style="color: #fff; margin-right: 15px; font-weight: bold;">👤 <%= user.username %></span>
+            <a href="/">🌍 На сайт</a> 
+            <a href="/user-logout" style="color: var(--danger);">🚪 Вийти</a>
+        </nav>
+    </header>
+
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <ul class="admin-menu">
+                <li><a href="#" class="nav-link active" onclick="openSection('dashboard')">📊 Аналітика</a></li>
+                <li><a href="#" class="nav-link" onclick="openSection('add')">➕ Додати контент</a></li>
+                <li><a href="#" class="nav-link" onclick="openSection('manage')">📝 Управління</a></li>
+                <li><a href="#" class="nav-link" onclick="openSection('comments')">🛡 Відгуки</a></li>
+                <li><a href="#" class="nav-link" onclick="openSection('messages')">📬 Запити юзерів <span style="background:var(--accent); color:#fff; padding:2px 8px; border-radius:10px; font-size:12px;"><%= messages ? messages.length : 0 %></span></a></li>
+                <li><a href="#" class="nav-link" onclick="openSection('users')">👥 Користувачі</a></li>
+                <li><a href="#" class="nav-link" onclick="openSection('poll')">📊 Опитування</a></li>
+                <li><a href="#" class="nav-link" onclick="openSection('database')">💾 База даних</a></li>
+            </ul>
+        </aside>
+
+        <main class="admin-main">
+            
+            <section id="dashboard" class="admin-section active">
+                <h2 class="section-title">Статистика платформи</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                    <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid var(--accent); padding: 30px; border-radius: 16px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+                        <h3 style="font-size: 42px; color: var(--accent); margin-bottom: 5px;"><%= movies.length %></h3>
+                        <p style="color: var(--text-muted); font-weight: 600;">Всього матеріалів</p>
+                    </div>
+                    <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid #0ea5e9; padding: 30px; border-radius: 16px; box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+                        <h3 style="font-size: 42px; color: #0ea5e9; margin-bottom: 5px;"><%= typeof formatNum !== 'undefined' ? formatNum(totalViews) : totalViews %></h3>
+                        <p style="color: var(--text-muted); font-weight: 600;">Загальних переглядів</p>
+                    </div>
+                </div>
+                <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 16px; border: 1px solid var(--glass-border); box-shadow: 0 0 20px rgba(0,0,0,0.5);">
+                    <canvas id="viewsChart" height="100"></canvas>
+                </div>
+            </section>
+
+            <section id="add" class="admin-section">
+                <h2 class="section-title">Створити публікацію</h2>
+                
+                <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid #0ea5e9; padding: 20px; border-radius: 12px; margin-bottom: 30px;">
+                    <h3 style="color: #0ea5e9; margin-bottom: 10px; font-size: 15px;">🤖 Розумне авто-заповнення (Uakino, Filmix)</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="parseUrlInput" placeholder="Вставте посилання на сторінку..." style="flex-grow: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.5); color: #fff;">
+                        <button type="button" class="btn" style="background: #0ea5e9;" onclick="parseMovieData()">Парсити дані</button>
+                    </div>
+                    <p id="parseStatus" style="font-size: 13px; margin-top: 10px; font-weight: bold;"></p>
+                </div>
+                
+                <form action="/admin/add" method="POST" enctype="multipart/form-data">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group"><label>Розміщення</label><select name="type"><option value="regular">Стрічка</option><option value="hero">Банер</option><option value="coming_soon">Скоро</option><option value="news">Новина</option></select></div>
+                        <div class="form-group"><label>Формат</label><select name="mediaType" id="addMediaType" onchange="toggleSeasonsAdd(this.value)"><option value="Фільм">Фільм</option><option value="Серіал">Серіал</option><option value="Аніме">Аніме</option><option value="Новина">Новина</option></select></div>
+                    </div>
+                    
+                    <div class="form-group"><label>Назва</label><input type="text" name="title" id="addTitle" required></div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                        <div><label style="color: #0ea5e9;">⏳ Дата публікації</label><input type="datetime-local" name="publishDate"></div>
+                        <div><label style="color: #10b981; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px; margin-top: 25px;"><input type="checkbox" name="postTelegram" style="width: 18px; height: 18px;"> ✈️ Відправити в Telegram</label></div>
+                    </div>
+                    
+                    <div class="form-group" style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.5); padding: 15px; border-radius: 10px;">
+                        <label style="color: var(--gold); font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 10px;"><input type="checkbox" name="isRecommendation" style="width: 18px; height: 18px;"> 🔥 Рекомендую особисто</label>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+                        <div class="form-group"><label>Рік</label><input type="number" name="year" id="addYear"></div>
+                        <div class="form-group" id="addSeasonsGroup" style="display: none;"><label style="color: var(--accent);">Сезони</label><input type="number" name="seasons" id="addSeasons"></div>
+                        <div class="form-group"><label>Режисер</label><input type="text" name="director" id="addDirector"></div>
+                        <div class="form-group"><label>Жанри</label><input type="text" name="genre" id="addGenre"></div>
+                    </div>
+                    
+                    <div class="form-group"><label>Актори</label><input type="text" name="actors" id="addActors"></div>
+                    <div class="form-group"><label style="color: var(--gold);">💡 Цікавий факт</label><textarea name="trivia" rows="2"></textarea></div>
+                    <div class="form-group"><label>Опис</label><textarea name="desc" id="addDesc" class="richtext" rows="10"></textarea></div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="file-upload-box"><label>Постер</label><input type="file" name="posterFile"><br><input type="text" name="posterUrl" id="addPosterUrl" placeholder="URL" style="margin-top:10px;"></div>
+                        <div class="file-upload-box"><label>Фон (Backdrop)</label><input type="file" name="backdropFile"><br><input type="text" name="backdropUrl" placeholder="URL" style="margin-top:10px;"></div>
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label style="color: var(--accent);">Скріншоти (до 5 шт)</label>
+                        <div style="background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); padding: 15px; border-radius: 8px;">
+                            <input type="file" name="screenshotFiles" multiple accept="image/*" style="margin-bottom: 10px; width: 100%;">
+                            <input type="text" name="screenshotUrls" id="addScreenshotUrls" placeholder="Або посилання через кому">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; border-top: 1px solid var(--glass-border); padding-top: 20px;">
+                        <div class="form-group"><label style="color:#E50914;">Netflix URL</label><input type="text" name="netflixUrl" id="addNetflix"></div>
+                        <div class="form-group"><label style="color:#00d563;">Megogo URL</label><input type="text" name="megogoUrl" id="addMegogo"></div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 10px;">
+                        <div class="form-group"><label>Трейлер (YouTube)</label><input type="text" name="trailer"></div>
+                        <div class="form-group"><label>Рейтинг</label><input type="number" step="0.1" name="rating"></div>
+                    </div>
+                    
+                    <button type="submit" class="btn" style="width: 100%; margin-top: 10px;">Опублікувати</button>
+                </form>
+            </section>
+
+            <section id="manage" class="admin-section">
+                <h2 class="section-title">Управління матеріалами</h2>
+                <div style="overflow-x: auto;">
+                    <table class="admin-table">
+                        <tr><th>Постер</th><th>Назва</th><th>Тип</th><th>Дії</th></tr>
+                        <% [...movies].reverse().forEach(m => { %>
+                            <tr>
+                                <td><img src="<%= m.poster %>" alt="poster" style="width: 45px; height: 65px; object-fit: cover; border-radius: 6px;"></td>
+                                <td>
+                                    <strong style="color: #fff; font-size: 15px;"><%= m.title %></strong> 
+                                    <% if(m.isRecommendation) { %><span style="color: var(--gold); font-size: 11px; margin-left: 5px;">🔥</span><% } %>
+                                </td>
+                                <td><span style="background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 6px; font-size: 12px; color: var(--text-muted);"><%= m.type %></span></td>
+                                <td>
+                                    <button class="action-btn edit" data-movie="<%= encodeURIComponent(JSON.stringify(m)) %>" onclick="openEditForm(this)">Ред.</button>
+                                    <form action="/admin/delete/<%= m.id %>" method="POST" style="display: inline-block;" onsubmit="return confirm('Видалити?');">
+                                        <button type="submit" class="action-btn delete">Видал.</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    </table>
+                </div>
+
+                <div id="editFormBlock" style="display: none; margin-top: 40px; padding-top: 40px; border-top: 1px solid var(--glass-border);">
+                    <h3 style="color: #0ea5e9; margin-bottom: 20px;">Редагування: <span id="editTitleLabel"></span></h3>
+                    <form id="editForm" method="POST" enctype="multipart/form-data">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="form-group"><select name="type" id="editType"><option value="regular">Стрічка</option><option value="hero">Банер</option><option value="coming_soon">Скоро</option><option value="news">Новина</option></select></div>
+                            <div class="form-group"><select name="mediaType" id="editMediaType" onchange="toggleSeasonsEdit(this.value)"><option value="Фільм">Фільм</option><option value="Серіал">Серіал</option><option value="Аніме">Аніме</option><option value="Новина">Новина</option></select></div>
+                        </div>
+                        <div class="form-group"><input type="text" name="title" id="editTitle" required></div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+                            <div><input type="datetime-local" name="publishDate" id="editPublishDate"></div>
+                            <div><label style="color: var(--gold); font-weight: bold; cursor: pointer;"><input type="checkbox" name="isRecommendation" id="editRecommendation"> 🔥 Рекомендую</label></div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
+                            <div class="form-group"><input type="number" name="year" id="editYear" placeholder="Рік"></div>
+                            <div class="form-group" id="editSeasonsGroup" style="display: none;"><input type="number" name="seasons" id="editSeasons" placeholder="Сезони"></div>
+                            <div class="form-group"><input type="text" name="director" id="editDirector" placeholder="Режисер"></div>
+                            <div class="form-group"><input type="text" name="genre" id="editGenre" placeholder="Жанри"></div>
+                        </div>
+                        <div class="form-group"><input type="text" name="actors" id="editActors" placeholder="Актори"></div>
+                        <div class="form-group"><label style="color: var(--gold);">💡 Цікавий факт</label><textarea name="trivia" id="editTrivia" rows="2"></textarea></div>
+                        <div class="form-group"><textarea name="desc" id="editDesc" class="richtext" rows="8"></textarea></div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="file-upload-box"><label>Постер URL</label><input type="file" name="posterFile"><br><input type="text" name="posterUrl" id="editPosterUrl"></div>
+                            <div class="file-upload-box"><label>Фон URL</label><input type="file" name="backdropFile"><br><input type="text" name="backdropUrl" id="editBackdropUrl"></div>
+                        </div>
+                        <div class="form-group" style="margin-top: 20px;">
+                            <label style="color: var(--accent);">Скріншоти</label>
+                            <div style="background: rgba(255,255,255,0.02); border: 1px dashed var(--glass-border); padding: 15px; border-radius: 8px;">
+                                <input type="file" name="screenshotFiles" multiple accept="image/*">
+                                <input type="text" name="screenshotUrls" id="editScreenshotUrls">
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                            <div class="form-group"><input type="text" name="netflixUrl" id="editNetflix" placeholder="Netflix URL"></div>
+                            <div class="form-group"><input type="text" name="megogoUrl" id="editMegogo" placeholder="Megogo URL"></div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-top: 10px;">
+                            <div class="form-group"><input type="text" name="trailer" id="editTrailer" placeholder="Трейлер URL"></div>
+                            <div class="form-group"><input type="number" step="0.1" name="rating" id="editRating" placeholder="Рейтинг"></div>
+                        </div>
+                        <button type="submit" class="btn" style="background: #0ea5e9; width: 100%; margin-top: 20px;">Зберегти зміни</button>
+                        <button type="button" class="btn" style="background: #333; width: 100%; margin-top: 10px;" onclick="document.getElementById('editFormBlock').style.display='none'">Скасувати</button>
+                    </form>
+                </div>
+            </section>
+
+            <section id="comments" class="admin-section">
+                <h2 class="section-title">Модерація відгуків</h2>
+                <table class="admin-table">
+                    <tr><th>Користувач</th><th>Відгук</th><th>Фільм</th><th>Дії</th></tr>
+                    <% let allComments = []; movies.forEach(m => { if(m.comments) m.comments.forEach(c => allComments.push({movieId: m.id, movieTitle: m.title, ...c})); }); %>
+                    <% if(allComments.length === 0) { %><tr><td colspan="4">Коментарів ще немає.</td></tr><% } %>
+                    <% allComments.forEach(c => { %>
+                        <tr>
+                            <td>
+                                <strong><%= c.user %></strong><br>
+                                <span style="font-size:11px; color:var(--text-muted);"><%= c.date %></span>
+                            </td>
+                            <td style="max-width: 300px;">
+                                <%= c.text %> 
+                                <% if(c.isSpoiler){ %><span style="color:var(--danger); font-size:10px;">[СПОЙЛЕР]</span><% } %>
+                            </td>
+                            <td><a href="/movie/<%= c.movieId %>" target="_blank" style="color: var(--accent); text-decoration: none;"><%= c.movieTitle %></a></td>
+                            <td>
+                                <form action="/admin/comment/delete/<%= c.movieId %>/<%= c.id %>" method="POST" onsubmit="return confirm('Видалити цей відгук?');">
+                                    <button type="submit" class="action-btn delete">Видалити</button>
+                                </form>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </table>
+            </section>
+
+            <section id="messages" class="admin-section">
+                <h2 class="section-title">Запити на додавання</h2>
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    <% if(!messages || messages.length === 0) { %><p>Запитів поки немає.</p><% } %>
+                    <% if(messages) { messages.forEach(msg => { %>
+                        <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; border: 1px solid var(--glass-border); position: relative;">
+                            <form action="/admin/message/delete/<%= msg.id %>" method="POST" style="position: absolute; top: 20px; right: 20px;">
+                                <button type="submit" class="action-btn delete">Видалити</button>
+                            </form>
+                            <h3 style="color: var(--accent); margin-bottom: 5px;"><%= msg.title %></h3>
+                            <p style="font-size: 12px; color: #888; margin-bottom: 10px;">Від: <strong><%= msg.name %></strong> | <%= msg.date %></p>
+                            <p style="color: #fff;"><%= msg.message || 'Без коментаря' %></p>
+                        </div>
+                    <% }) } %>
+                </div>
+            </section>
+
+            <section id="users" class="admin-section">
+                <h2 class="section-title">База користувачів</h2>
+                <table class="admin-table">
+                    <tr><th>Логін</th><th>Email</th><th>Реєстрація</th><th>Роль</th><th>Дії</th></tr>
+                    <% if(!users || users.length === 0) { %><tr><td colspan="5">Користувачів ще немає.</td></tr><% } %>
+                    <% if(users) { users.forEach(u => { %>
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <img src="<%= u.avatar %>" style="width: 30px; height: 30px; border-radius: 50%;">
+                                    <strong><%= u.username %></strong>
+                                </div>
+                            </td>
+                            <td><%= u.email || '—' %></td>
+                            <td><span style="font-size: 12px; color: var(--text-muted);"><%= u.regDate %></span></td>
+                            <td>
+                                <% if(u.isAdmin) { %>
+                                    <span style="color: var(--gold); font-weight: bold; font-size: 12px;">Адміністратор</span>
+                                <% } else { %>
+                                    <span style="color: var(--text-muted); font-size: 12px;">Користувач</span>
+                                <% } %>
+                            </td>
+                            <td>
+                                <% if(!u.isAdmin) { %>
+                                    <form action="/admin/user/delete/<%= u.id %>" method="POST" onsubmit="return confirm('Видалити користувача?');">
+                                        <button type="submit" class="action-btn delete">Видалити</button>
+                                    </form>
+                                <% } else { %>
+                                    <span style="font-size: 11px; color: #555;">Неможливо</span>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) } %>
+                </table>
+            </section>
+
+            <section id="poll" class="admin-section">
+                <h2 class="section-title">Віджет Опитування</h2>
+                <form action="/admin/poll/update" method="POST" style="background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); padding: 30px; border-radius: 16px;">
+                    <div class="form-group"><label>Питання</label><input type="text" name="question" value="<%= poll.question %>" required></div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;">
+                        <div class="form-group"><label>Варіант 1</label><input type="text" name="opt1" value="<%= poll.options[0] ? poll.options[0].text : '' %>" required></div>
+                        <div class="form-group"><label>Варіант 2</label><input type="text" name="opt2" value="<%= poll.options[1] ? poll.options[1].text : '' %>" required></div>
+                        <div class="form-group"><label>Варіант 3 (необов'язково)</label><input type="text" name="opt3" value="<%= poll.options[2] ? poll.options[2].text : '' %>"></div>
+                    </div>
+                    <p style="color: var(--danger); font-size: 12px; margin-bottom: 15px;">* Оновлення опитування обнулить всі поточні голоси.</p>
+                    <button type="submit" class="btn" style="background: var(--accent);">Зберегти опитування</button>
+                </form>
+            </section>
+
+            <section id="database" class="admin-section">
+                <h2 class="section-title">Управління Базою Даних (JSON)</h2>
+                <div style="margin-bottom: 30px;">
+                    <a href="/admin/backup" class="btn" style="background: #10b981;">📥 Завантажити Backup</a>
+                </div>
+                <hr style="border: none; border-top: 1px solid var(--glass-border); margin-bottom: 30px;">
+                <form action="/admin/restore" method="POST" enctype="multipart/form-data">
+                    <p style="color: var(--danger); margin-bottom: 10px; font-weight: bold;">Увага: Це повністю перезапише поточну базу!</p>
+                    <input type="file" name="dbfile" accept=".json" required style="padding: 10px; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: white; width: 100%; border-radius: 8px;">
+                    <button type="submit" class="btn" style="background: var(--danger); margin-top: 15px;">⚠️ Відновити з файлу</button>
+                </form>
+            </section>
+
+        </main>
+    </div>
+
+    <script>
+        // Перемикання вкладок
+        function openSection(id) { 
+            document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active')); 
+            document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active')); 
+            document.getElementById(id).classList.add('active'); 
+            event.currentTarget.classList.add('active'); 
+        }
+        
+        // Управління полями "Сезони"
+        function toggleSeasonsAdd(val) { document.getElementById('addSeasonsGroup').style.display = val === 'Серіал' ? 'block' : 'none'; }
+        function toggleSeasonsEdit(val) { document.getElementById('editSeasonsGroup').style.display = val === 'Серіал' ? 'block' : 'none'; }
+
+        // АВТОПАРСЕР
+        async function parseMovieData() {
+            const urlInput = document.getElementById('parseUrlInput').value;
+            const status = document.getElementById('parseStatus');
+            
+            if(!urlInput) { 
+                status.innerText = "❌ Будь ласка, вставте посилання на фільм"; 
+                status.style.color = 'var(--danger)'; 
+                return; 
+            }
+
+            status.innerText = "⏳ Парсинг сторінки та переклад... Це займе пару секунд.";
+            status.style.color = '#0ea5e9';
+
+            try {
+                const response = await fetch('/api/parse', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ url: urlInput }) 
+                });
+                
+                if (!response.ok) throw new Error(`Сервер повернув помилку ${response.status}`);
+                const data = await response.json();
+
+                if (data.success) {
+                    status.innerText = "✅ Дані успішно завантажені та перекладені!";
+                    status.style.color = '#10b981';
+
+                    // Заповнюємо поля
+                    if(data.data.title) document.getElementById('addTitle').value = data.data.title;
+                    if(data.data.year) document.getElementById('addYear').value = data.data.year.replace(/\D/g, '');
+                    if(data.data.director) document.getElementById('addDirector').value = data.data.director;
+                    if(data.data.actors) document.getElementById('addActors').value = data.data.actors;
+                    if(data.data.genre) document.getElementById('addGenre').value = data.data.genre;
+                    if(data.data.poster) document.getElementById('addPosterUrl').value = data.data.poster;
+                    
+                    if(data.data.screenshots) {
+                        const screenInput = document.getElementById('addScreenshotUrls');
+                        if(screenInput) screenInput.value = data.data.screenshots;
+                    }
+
+                    if(data.data.netflixUrl) document.getElementById('addNetflix').value = data.data.netflixUrl;
+                    if(data.data.megogoUrl) document.getElementById('addMegogo').value = data.data.megogoUrl;
+                    
+                    if(data.data.mediaType) {
+                        document.getElementById('addMediaType').value = data.data.mediaType;
+                        toggleSeasonsAdd(data.data.mediaType);
+                    }
+                    if(data.data.seasons) document.getElementById('addSeasons').value = data.data.seasons;
+
+                    if(data.data.desc) {
+                        if(tinymce.get('addDesc')) tinymce.get('addDesc').setContent(data.data.desc);
+                        else document.getElementById('addDesc').value = data.data.desc;
+                    }
+                } else {
+                    status.innerText = "❌ Помилка: " + data.error; 
+                    status.style.color = 'var(--danger)'; 
+                }
+            } catch (error) {
+                console.error(error); 
+                status.innerText = "❌ " + error.message; 
+                status.style.color = 'var(--danger)'; 
+            }
+        }
+
+        // РЕДАГУВАННЯ ФІЛЬМУ
+        function openEditForm(btn) {
+            const movie = JSON.parse(decodeURIComponent(btn.getAttribute('data-movie')));
+            const formBlock = document.getElementById('editFormBlock'); 
+            formBlock.style.display = 'block'; 
+            formBlock.scrollIntoView({ behavior: 'smooth' });
+            
+            document.getElementById('editForm').action = '/admin/edit/' + movie.id; 
+            document.getElementById('editTitleLabel').innerText = movie.title;
+            
+            document.getElementById('editTitle').value = movie.title || ''; 
+            document.getElementById('editRating').value = movie.rating || 0;
+            document.getElementById('editType').value = movie.type || 'regular'; 
+            document.getElementById('editMediaType').value = movie.mediaType || 'Фільм';
+            document.getElementById('editTrailer').value = movie.trailer || ''; 
+            document.getElementById('editYear').value = movie.year || '';
+            document.getElementById('editDirector').value = movie.director || ''; 
+            document.getElementById('editActors').value = movie.actors || '';
+            document.getElementById('editSeasons').value = movie.seasons || ''; 
+            
+            toggleSeasonsEdit(movie.mediaType);
+            
+            document.getElementById('editGenre').value = Array.isArray(movie.genre) ? movie.genre.join(', ') : movie.genre;
+            document.getElementById('editNetflix').value = movie.netflixUrl || ''; 
+            document.getElementById('editMegogo').value = movie.megogoUrl || '';
+            document.getElementById('editTrivia').value = movie.trivia || '';
+            
+            const editScreenshots = document.getElementById('editScreenshotUrls');
+            if(editScreenshots && movie.screenshots && Array.isArray(movie.screenshots)) {
+                editScreenshots.value = movie.screenshots.join(', ');
+            }
+            
+            document.getElementById('editPosterUrl').value = movie.poster && movie.poster.includes('http') ? movie.poster : '';
+            document.getElementById('editBackdropUrl').value = movie.backdrop && movie.backdrop.includes('http') ? movie.backdrop : '';
+
+            if(movie.publishDate) { 
+                const pd = new Date(movie.publishDate); 
+                pd.setMinutes(pd.getMinutes() - pd.getTimezoneOffset()); 
+                document.getElementById('editPublishDate').value = pd.toISOString().slice(0,16); 
+            }
+            
+            document.getElementById('editRecommendation').checked = movie.isRecommendation === true; 
+            
+            if(tinymce.get('editDesc')) {
+                tinymce.get('editDesc').setContent(movie.desc || '');
+            } else {
+                document.getElementById('editDesc').value = movie.desc || '';
+            }
+        }
+
+        // ГРАФІК АНАЛІТИКИ
+        document.addEventListener("DOMContentLoaded", function() {
+            const ctx = document.getElementById('viewsChart').getContext('2d');
+            const chartData = <%- JSON.stringify(movies.sort((a,b)=>(b.views||0)-(a.views||0)).slice(0,5).map(m=>({title: m.title.substring(0,15)+'...', views: m.views||0}))) %>;
+            
+            new Chart(ctx, { 
+                type: 'bar', 
+                data: { 
+                    labels: chartData.map(d => d.title), 
+                    datasets: [{ 
+                        label: 'Перегляди', 
+                        data: chartData.map(d => d.views), 
+                        backgroundColor: '#f43f5e', 
+                        borderRadius: 4 
+                    }] 
+                }, 
+                options: { 
+                    responsive: true, 
+                    scales: { 
+                        y: { ticks: { color: '#94a3b8' }, grid: { color: 'rgba(255,255,255,0.05)' } }, 
+                        x: { ticks: { color: '#94a3b8' }, grid: { display: false } } 
+                    }, 
+                    plugins: { legend: { labels: { color: '#fff' } } } 
+                } 
+            });
+        });
+
+        // ПОВІДОМЛЕННЯ
+        const urlParams = new URLSearchParams(window.location.search); 
+        if(urlParams.get('success')) { window.history.replaceState({}, document.title, "/admin"); }
+    </script>
+</body>
+</html>

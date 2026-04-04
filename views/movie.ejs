@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <title><%= title %></title>
+    <meta property="og:title" content="<%= movie.title %> - Огляд">
+    <meta property="og:description" content="<%= movie.desc.replace(/<[^>]*>?/gm, '').substring(0, 150) %>...">
+    <meta property="og:image" content="<%= movie.backdrop || movie.poster %>">
+    <meta property="og:url" content="<%= fullUrl %>">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="theme-picker">
+        <div class="theme-dot pink" onclick="setTheme('pink')"></div><div class="theme-dot blue" onclick="setTheme('blue')"></div>
+        <div class="theme-dot green" onclick="setTheme('green')"></div><div class="theme-dot purple" onclick="setTheme('purple')"></div>
+    </div>
+
+    <div class="contact-modal" id="authModal">
+        <div class="contact-content">
+            <button class="contact-close" onclick="document.getElementById('authModal').classList.remove('active')">×</button>
+            <div class="auth-tabs"><div class="auth-tab active" onclick="switchAuthTab('login')">Вхід</div><div class="auth-tab" onclick="switchAuthTab('register')">Реєстрація</div></div>
+            <form id="loginForm" action="/user-login" method="POST"><div class="form-group"><input type="text" name="username" placeholder="Ваш Логін" required></div><div class="form-group"><input type="password" name="password" placeholder="Пароль" required></div><button type="submit" class="btn" style="width: 100%;">Увійти</button></form>
+            <form id="registerForm" action="/register" method="POST" style="display: none;"><div class="form-group"><input type="text" name="username" placeholder="Придумайте Логін" required></div><div class="form-group"><input type="password" name="password" placeholder="Придумайте Пароль" required></div><button type="submit" class="btn" style="width: 100%;">Створити акаунт</button></form>
+        </div>
+    </div>
+
+    <header>
+        <a href="/" class="logo">Дімз<span>Огляд</span></a>
+        <div class="header-right">
+            <nav>
+                <a href="/">🏠 На головну</a>
+                <% if(user) { %>
+                    <a href="/profile" style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); color: #fff;">
+                        <img src="<%= user.avatar %>" style="width: 20px; height: 20px; border-radius: 50%;"> <%= user.username %>
+                    </a>
+                <% } else { %>
+                    <a href="#" onclick="document.getElementById('authModal').classList.add('active'); event.preventDefault();">Вхід</a>
+                <% } %>
+                <% if(isAdmin) { %><a href="/admin" style="color: var(--gold); font-weight: 800;">⚙️ CMS</a><% } %>
+            </nav>
+        </div>
+    </header>
+
+    <div class="movie-banner-box">
+        <img src="<%= movie.backdrop || movie.poster %>" class="movie-bg" alt="Фон">
+        <div class="movie-banner-overlay"></div>
+        <div style="position: relative; z-index: 2; width: 100%;">
+            <h1 style="font-size: 50px; margin: 0 0 15px 0; color: #fff; text-shadow: 0 5px 15px #000; font-weight: 900;"><%= movie.title %></h1>
+            <div style="display:flex; gap: 20px; color: #e2e8f0; font-size: 15px; background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 10px; width: max-content; backdrop-filter: blur(5px);">
+                <% if(movie.type !== 'news') { %>
+                    <span style="color:#10b981; font-weight:bold;">★ <%= movie.rating %> / 10</span>
+                    <span style="color:var(--gold); font-weight:bold;" id="userAvgText">👨‍👩‍👧‍👦 <%= movie.userRatingAvg || '-' %> / 10</span>
+                <% } %>
+                <span>📅 <%= movie.date %></span>
+                <span>👁 <%= formatNum(movie.views) %> переглядів</span>
+            </div>
+            <% if(movie.trailer) { %><button onclick="openCinema()" class="btn" style="margin-top: 25px; font-size: 16px;">▶ Дивитись трейлер</button><% } %>
+        </div>
+    </div>
+
+    <% if(movie.trailer) { %>
+        <div class="cinema-modal" id="cinemaModal" onclick="closeCinema(event)">
+            <button class="cinema-close" onclick="closeCinema(event)">×</button>
+            <div class="cinema-content" onclick="event.stopPropagation()"><div id="trailerContainer"></div></div>
+        </div>
+    <% } %>
+
+    <div class="lightbox-modal" id="lightboxModal" onclick="closeLightbox()">
+        <img src="" class="lightbox-content" id="lightboxImage">
+    </div>
+
+    <div class="container" style="min-height: 50vh;">
+        <div class="movie-grid-layout">
+            <div class="movie-desc-col">
+                <div class="rich-description"><%- movie.desc %></div>
+                
+                <% if(movie.trivia) { %><div class="trivia-block"><h3>💡 Цікавий факт</h3><p><%= movie.trivia %></p></div><% } %>
+                
+                <% if(movie.screenshots && movie.screenshots.length > 0) { %>
+                    <div style="margin-top: 30px;">
+                        <h2 class="section-title">Кадри з фільму</h2>
+                        <div class="screenshot-gallery">
+                            <% 
+                                let shotsArray = Array.isArray(movie.screenshots) ? movie.screenshots : movie.screenshots.split(',');
+                                shotsArray.forEach(shot => { 
+                                    if(shot.trim()) {
+                            %>
+                                <img src="<%= shot.trim() %>" alt="Скріншот" onclick="openLightbox('<%= shot.trim() %>')">
+                            <% 
+                                    }
+                                }); 
+                            %>
+                        </div>
+                    </div>
+                <% } %>
+
+                <hr style="border-color: var(--glass-border); margin: 40px 0;">
+
+                <div class="comments-section">
+                    <h2 class="section-title">Обговорення та Оцінки</h2>
+                    
+                    <% if(movie.type !== 'news' && movie.totalRatings > 0) { %>
+                        <div style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; border: 1px solid var(--glass-border); margin-bottom: 25px;">
+                            <h3 style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px; text-transform: uppercase;">Розподіл оцінок глядачів:</h3>
+                            <div class="rating-distribution">
+                                <% [10, 8, 6, 4, 2].forEach(star => { %>
+                                    <% const count = movie.ratingCounts[star] || 0; const percent = movie.totalRatings > 0 ? (count / movie.totalRatings * 100) : 0; %>
+                                    <div class="rating-bar-row"><div class="rating-bar-label"><%= star %> ★</div><div class="rating-bar-outer"><div class="rating-bar-inner" style="width: <%= percent %>%;"></div></div><div class="rating-bar-count"><%= count %></div></div>
+                                <% }) %>
+                            </div>
+                        </div>
+                    <% } %>
+
+                    <div style="background: var(--glass-bg); padding: 25px; border-radius: 12px; margin-bottom: 30px; border: 1px solid var(--glass-border);">
+                        <form id="ajaxCommentForm" style="display: flex; flex-direction: column; gap: 15px;">
+                            <% if(user) { %>
+                                <div style="display: flex; align-items: center; gap: 10px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px;">
+                                    <img src="<%= user.avatar %>" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                    <div><p style="color: var(--text-muted); font-size: 12px;">Коментар від імені:</p><p style="color: var(--accent); font-weight: bold;"><%= user.username %></p></div>
+                                </div>
+                            <% } else { %>
+                                <input type="text" name="username" id="c_name" placeholder="Як вас звати? (Або увійдіть в акаунт)" required>
+                            <% } %>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <label style="color: var(--accent); cursor: pointer; display: flex; align-items: center; gap: 8px;"><input type="checkbox" id="c_spoiler" style="width: 16px; height: 16px;"> 🙈 Містить спойлер</label>
+                                <div class="star-rating">
+                                    <input type="radio" id="star10" name="rating" value="10"><label for="star10">★</label>
+                                    <input type="radio" id="star8" name="rating" value="8"><label for="star8">★</label>
+                                    <input type="radio" id="star6" name="rating" value="6"><label for="star6">★</label>
+                                    <input type="radio" id="star4" name="rating" value="4"><label for="star4">★</label>
+                                    <input type="radio" id="star2" name="rating" value="2"><label for="star2">★</label>
+                                </div>
+                            </div>
+                            <textarea name="text" id="c_text" rows="3" placeholder="Напишіть свою думку..." required></textarea>
+                            <button type="submit" class="btn" style="align-self: flex-start;">Опублікувати</button>
+                        </form>
+                    </div>
+                    
+                    <div id="commentsList">
+                        <% if (!movie.comments || movie.comments.length === 0) { %><p id="noComments" style="color: var(--text-muted);">Будьте першим!</p><% } %>
+                        <% if(movie.comments) { movie.comments.forEach(c => { %>
+                            <div style="border-bottom: 1px solid var(--glass-border); padding: 20px 0; display: flex; gap: 15px;">
+                                <img src="<%= c.avatar || '/default-avatar.png' %>" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid var(--glass-border);">
+                                <div style="flex-grow: 1;">
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                        <strong style="color: var(--text-main); font-size: 15px;"><%= c.user %></strong> 
+                                        <% const badge = getBadge(c.userCommentsCount || 0); %>
+                                        <span class="user-badge" style="color: <%= badge.color %>;"><%= badge.name %></span>
+                                        <% if(c.rating > 0) { %><span style="color: var(--gold); font-weight: bold; font-size: 13px;">★ <%= c.rating %></span><% } %>
+                                        <span style="color:var(--text-muted); font-size:12px; margin-left: auto;"><%= c.date %></span>
+                                    </div>
+                                    <p class="<%= c.isSpoiler ? 'spoiler-text' : '' %>" onclick="this.classList.add('revealed')" style="line-height: 1.6; color: #e2e8f0; font-size: 14px;"><%= c.text %></p>
+                                    <button class="comment-like-btn" onclick="likeComment(<%= movie.id %>, <%= c.id %>, this)">👍 <span><%= c.likes || 0 %></span></button>
+                                </div>
+                            </div>
+                        <% }) } %>
+                    </div>
+                </div>
+            </div>
+
+            <div class="movie-trailer-col">
+                <% if(movie.type !== 'news') { %>
+                    <div class="metadata-sidebar">
+                        <% if(movie.netflixUrl || movie.megogoUrl) { %>
+                            <div style="margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+                                <span class="meta-label">Де подивитись легально:</span>
+                                <% if(movie.netflixUrl) { %><a href="<%= movie.netflixUrl %>" target="_blank" class="stream-btn" style="border-color: #E50914;"><img src="https://assets.nflxext.com/us/ffe/siteui/common/icons/nficon2016.ico" class="stream-icon"> На Netflix</a><% } %>
+                                <% if(movie.megogoUrl) { %><a href="<%= movie.megogoUrl %>" target="_blank" class="stream-btn" style="border-color: #00d563;"><div class="stream-icon" style="background:#00d563;"></div> На Megogo</a><% } %>
+                            </div>
+                        <% } %>
+                        <div class="meta-item"><span class="meta-label">Тип</span><span class="meta-value"><%= movie.mediaType || 'Фільм' %> <% if(movie.seasons){ %><span class="season-badge"><%= movie.seasons %> Сез.</span><% } %></span></div>
+                        <div class="meta-item"><span class="meta-label">Рік виходу</span><span class="meta-value"><%= movie.year || 'Не вказано' %></span></div>
+                        
+                        <div class="meta-item"><span class="meta-label">Жанри</span>
+                            <div class="meta-value" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                                <% const mGenres = getGenresArray(movie.genre); %>
+                                <% mGenres.forEach(g => { %><a href="/?genre=<%= encodeURIComponent(g) %>" class="actor-tag"><%= g %></a><% }) %>
+                            </div>
+                        </div>
+                        
+                        <div class="meta-item"><span class="meta-label">Режисер</span>
+                            <div class="meta-value" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                                <% if(movie.director) { %>
+                                    <% movie.director.split(',').forEach(d => { %><a href="/?search=<%= encodeURIComponent(d.trim()) %>" class="actor-tag"><%= d.trim() %></a><% }) %>
+                                <% } else { %>—<% } %>
+                            </div>
+                        </div>
+                        <div class="meta-item"><span class="meta-label">В головних ролях</span>
+                            <div class="meta-value" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                                <% if(movie.actors) { %>
+                                    <% movie.actors.split(',').forEach(a => { %><a href="/?search=<%= encodeURIComponent(a.trim()) %>" class="actor-tag"><%= a.trim() %></a><% }) %>
+                                <% } else { %>—<% } %>
+                            </div>
+                        </div>
+                        
+                    </div>
+                <% } %>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+    <footer><div class="footer-bottom">&copy; 2026 Дімз Огляд. Всі права захищено.</div></footer>
+
+    <script>
+        function switchAuthTab(tab) { document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active')); event.target.classList.add('active'); if(tab === 'login') { document.getElementById('loginForm').style.display = 'block'; document.getElementById('registerForm').style.display = 'none'; } else { document.getElementById('loginForm').style.display = 'none'; document.getElementById('registerForm').style.display = 'block'; } }
+
+        const modal = document.getElementById('cinemaModal'); const container = document.getElementById('trailerContainer'); const trailerUrl = "<%= movie.trailer %>";
+        function openCinema() { container.innerHTML = `<iframe src="${trailerUrl}" frameborder="0" allow="autoplay; fullscreen" allowfullscreen></iframe>`; modal.classList.add('active'); }
+        function closeCinema(e) { if(e) e.preventDefault(); modal.classList.remove('active'); container.innerHTML = ''; }
+
+        // ✅ ФУНКЦІЇ ДЛЯ ЛАЙТБОКСУ (ГАЛЕРЕЇ)
+        function openLightbox(src) {
+            document.getElementById('lightboxImage').src = src;
+            document.getElementById('lightboxModal').classList.add('active');
+        }
+        function closeLightbox() {
+            document.getElementById('lightboxModal').classList.remove('active');
+            setTimeout(() => document.getElementById('lightboxImage').src = '', 300);
+        }
+
+        async function likeComment(movieId, commentId, btn) {
+            if(btn.classList.contains('liked')) return;
+            const res = await fetch(`/api/comment/${movieId}/${commentId}/like`, { method: 'POST' });
+            const data = await res.json();
+            if(data.success) { btn.classList.add('liked'); btn.querySelector('span').innerText = data.likes; }
+        }
+
+        document.getElementById('ajaxCommentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ratingRadio = document.querySelector('input[name="rating"]:checked');
+            const nameInput = document.getElementById('c_name');
+            const payload = { username: nameInput ? nameInput.value : '', text: document.getElementById('c_text').value, isSpoiler: document.getElementById('c_spoiler').checked, rating: ratingRadio ? ratingRadio.value : 0 };
+
+            const res = await fetch('/api/movie/<%= movie.id %>/comment', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+            const data = await res.json();
+
+            if(data.success) {
+                document.getElementById('c_text').value = ''; document.getElementById('c_spoiler').checked = false; if(ratingRadio) ratingRadio.checked = false;
+                if(document.getElementById('noComments')) document.getElementById('noComments').style.display = 'none';
+
+                const newHtml = `
+                    <div style="border-bottom: 1px solid var(--glass-border); padding: 20px 0; display: flex; gap: 15px; animation: fadeIn 0.5s;">
+                        <img src="${data.comment.avatar}" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid var(--glass-border);">
+                        <div style="flex-grow: 1;">
+                            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                                <strong style="color: var(--text-main); font-size: 15px;">${data.comment.user}</strong> 
+                                <span class="user-badge" style="color: ${data.badge.color};">${data.badge.name}</span>
+                                ${data.comment.rating > 0 ? `<span style="color: var(--gold); font-weight: bold; font-size: 13px;">★ ${data.comment.rating}</span>` : ''}
+                                <span style="color:var(--text-muted); font-size:12px; margin-left: auto;">Щойно</span>
+                            </div>
+                            <p class="${data.comment.isSpoiler ? 'spoiler-text' : ''}" onclick="this.classList.add('revealed')" style="color: #e2e8f0; font-size: 14px;">${data.comment.text}</p>
+                        </div>
+                    </div>`;
+                document.getElementById('commentsList').insertAdjacentHTML('afterbegin', newHtml);
+                if(data.newAvg && document.getElementById('userAvgText')) document.getElementById('userAvgText').innerText = `👨‍👩‍👧‍👦 ${data.newAvg} / 10`;
+            }
+        });
+    </script>
+</body>
+</html>
